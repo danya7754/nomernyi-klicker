@@ -197,6 +197,20 @@ body.space .stage { clip-path: none; }
   animation: sweep 1.6s ease-out infinite;
   pointer-events: none;
 }
+/* особливі номери */
+.plate.v-gold { background: linear-gradient(135deg, #fff7d1 0%, #ffd86b 32%, #fff2bd 52%, #f2c24a 72%, #e4a92a 100%); }
+.plate.v-diamond { background: #eef8ff; }
+.plate.v-diamond::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, #eef9ff, #cde8ff 18%, #f3d9ff 36%, #d2fff1 54%, #fff3cf 72%, #dcecff 88%, #eef9ff);
+  background-size: 300% 100%;
+  animation: holo 5s linear infinite;
+}
+.plate.v-diamond .plate-flag, .plate.v-diamond .plate-text { position: relative; }
+@keyframes holo { to { background-position: 300% 0; } }
+.plate.word .reg, .plate.word .ser { display: none; }
+.plate.word .num { letter-spacing: .07em; }
+
 @keyframes glowPulse { 50% { filter: brightness(1.06); transform: scale(1.025); } }
 @keyframes sweep { 60%, 100% { transform: translateX(120%); } }
 
@@ -306,6 +320,11 @@ body.space .gain { opacity: 1; }
 @keyframes caret { 50% { opacity: 0; } }
 .find-note { margin-top: 8px; font-size: 12px; opacity: .88; color: #d8f7e2; animation: lineIn .3s ease-out; }
 .find-note[hidden] { display: none; }
+/* у космосі довге пояснення компактніше, а примітка з'явиться після виходу */
+body.space .find-note { display: none; }
+.find.dense .find-reasons { gap: 4px; }
+.find.dense .find-reasons li { font-size: 12px; line-height: 1.3; }
+.find.dense .find-sum { margin: 4px 0 2px; }
 
 .continue {
   position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
@@ -391,7 +410,22 @@ body.space .region { animation: driftB 8s ease-in-out -2s infinite; }
   55% { transform: translateY(-4px) rotate(-3deg); }
   75% { transform: rotate(1deg); }
 }
-.tapinfo { font-size: 12px; opacity: .8; padding-bottom: 8px; text-align: center; }
+.mid-btns { display: flex; gap: 14px; align-items: flex-end; }
+.corner-btn.mini { font-size: 11px; }
+.mini-ico { width: 46px; height: 46px; margin-bottom: 4px; }
+.gift-dot {
+  position: absolute; top: -2px; right: 8px; width: 14px; height: 14px; border-radius: 50%;
+  background: #e8344e; border: 2px solid #fff; display: none;
+}
+#giftBtn.ready .gift-dot { display: block; }
+#giftBtn.ready .gift-ico { animation: giftWiggle 1.8s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes giftWiggle {
+  0%, 60%, 100% { transform: none; }
+  68% { transform: rotate(-10deg) scale(1.08); }
+  76% { transform: rotate(9deg) scale(1.08); }
+  84% { transform: rotate(-5deg); }
+  92% { transform: rotate(3deg); }
+}
 
 /* ефекти кліку та монети */
 .ripple {
@@ -495,6 +529,63 @@ body.space .region { animation: driftB 8s ease-in-out -2s infinite; }
 .sell { grid-column: 2; align-self: end; min-width: 92px; }
 .sell.confirm { background: #ff7a59; box-shadow: 0 3px 0 #b44a2e; color: #fff; }
 
+/* досягнення */
+.ach-sum { font-size: 13px; opacity: .9; margin-bottom: 10px; }
+.ach-sum b { color: var(--gold); }
+.ach-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; display: grid; gap: 8px; align-content: start; padding-bottom: 8px; }
+.ach {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
+  padding: 10px 12px; border-radius: 14px; background: rgba(10, 28, 64, .35);
+  border: 1px solid transparent;
+}
+.ach.got { border-color: var(--gold); background: linear-gradient(135deg, rgba(10, 28, 64, .45), rgba(255, 210, 90, .18)); }
+.ach-ico { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; background: rgba(255, 255, 255, .12); }
+.ach:not(.got) .ach-ico { filter: grayscale(1); opacity: .6; }
+.ach-body { display: grid; gap: 2px; min-width: 0; }
+.ach-body b { font-size: 15px; }
+.ach-body span { font-size: 12.5px; opacity: .85; line-height: 1.3; }
+.ach-body small { font-size: 11px; opacity: .75; font-variant-numeric: tabular-nums; }
+.ach-bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .15); overflow: hidden; margin-top: 3px; }
+.ach-bar i { display: block; height: 100%; background: var(--gold); border-radius: 3px; }
+.ach-reward { font-size: 13px; font-weight: 800; color: var(--gold); white-space: nowrap; }
+
+.ach-pop {
+  position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 10px); z-index: 61;
+  display: flex; align-items: center; gap: 10px;
+  width: min(360px, calc(100vw - 32px)); padding: 10px 14px; border-radius: 16px;
+  background: linear-gradient(135deg, #1b3a72, #2c5aa0); border: 2px solid var(--gold);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .4), 0 0 24px rgba(255, 210, 90, .45);
+  transform: translate(-50%, -160%); transition: transform .45s cubic-bezier(.2, .9, .3, 1.2);
+  pointer-events: none;
+}
+.ach-pop.show { transform: translate(-50%, 0); }
+.ach-pop-ico { font-size: 30px; }
+.ach-pop-text { display: grid; flex: 1; min-width: 0; }
+.ach-pop-text small { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); }
+.ach-pop-text b { font-size: 16px; }
+.ach-pop-reward { color: var(--gold); font-size: 16px; white-space: nowrap; }
+
+/* щоденний подарунок */
+.daily-note { margin: 0 0 12px; font-size: 13px; line-height: 1.45; opacity: .9; }
+.daily-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+.day {
+  display: grid; gap: 4px; justify-items: center; padding: 10px 4px; border-radius: 12px;
+  background: rgba(10, 28, 64, .35); border: 1px solid rgba(255, 255, 255, .12);
+}
+.day span { font-size: 11px; opacity: .8; }
+.day b { font-size: 14px; color: var(--gold); white-space: nowrap; }
+.day.big { grid-column: span 2; }
+.day.done { opacity: .55; }
+.day.done b { color: #9df0b8; font-size: 18px; }
+.day.today { border: 2px solid var(--gold); background: rgba(255, 210, 90, .18); animation: dayGlow 1.4s ease-in-out infinite; }
+@keyframes dayGlow { 50% { box-shadow: 0 0 18px rgba(255, 210, 90, .6); } }
+.daily-claim { width: 100%; }
+
+.kind-chip { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--ink); }
+.k-gold { background: linear-gradient(135deg, #fff1b8, #f2c24a); }
+.k-diamond { background: linear-gradient(115deg, #cde8ff, #f3d9ff, #d2fff1); }
+.k-word { background: #fff; }
+
 /* покращення */
 .shop-list { display: grid; gap: 10px; }
 .upg { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding: 13px; border-radius: 16px; background: rgba(10, 28, 64, .35); }
@@ -531,6 +622,9 @@ body.space .region { animation: driftB 8s ease-in-out -2s infinite; }
 @media (max-height: 620px) {
   .stage { padding-top: 5vh; }
   .hint { margin-bottom: 24px; }
+  .plate-zone { transition: transform .5s ease; }
+  body.space .plate-zone { transform: translateY(-56px); }
+  .continue { bottom: calc(env(safe-area-inset-bottom, 0px) + 4px); font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

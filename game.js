@@ -117,6 +117,16 @@
   const COLLECT_MIN = 100;                 // з «Рідкісного» — гроші та скриня
   const SPACE_TIERS = ['epic', 'legend', 'myth'];
 
+  // Особливі номери: покриття знака та іменні написи
+  const VARIANTS = {
+    gold:    { odds: 200,  label: 'Золотий знак',     name: 'золоте покриття',     why: 'знак блищить золотом' },
+    diamond: { odds: 3000, label: 'Діамантовий знак', name: 'діамантове покриття', why: 'знак переливається, як діамант' },
+  };
+  const WORD_ODDS = 5000;
+  // лише літери, дозволені на українських номерах: А В Е І К М Н О Р С Т Х
+  const WORDS = ['КОСМОС', 'РАКЕТА', 'КОМЕТА', 'МЕТЕОР', 'ОКЕАН', 'МОРЕ', 'ВІТЕР', 'ХАРКІВ', 'ТАКСІ', 'МЕТРО',
+    'ВЕКТОР', 'ТОРТ', 'СОВА', 'ВОВК', 'КІТ', 'МАМА', 'ТАТО', 'ХАТА', 'АТОМ', 'МАРС'];
+
   const tierFor = (n) => TIERS.reduce((acc, t) => (n >= t.min ? t : acc), TIERS[0]);
 
   const niceRound = (x) => {
@@ -125,11 +135,17 @@
     return Math.round(x / p) * p;
   };
 
-  function evaluate(r, n, s) {
-    const dRule = DIGIT_RULES.find((x) => x.test(n));
-    const lRule = LETTER_RULES.find((x) => x.test(r, s));
+  function evaluate(r, n, s, extra) {
+    const v = (extra && extra.v) || '';
+    const w = !!(extra && extra.w);
+    const dRule = w ? null : DIGIT_RULES.find((x) => x.test(n));
+    const lRule = w ? null : LETTER_RULES.find((x) => x.test(r, s));
     const parts = [];
     let odds = 1;
+    if (w) {
+      odds *= WORD_ODDS;
+      parts.push({ label: `Іменний номер «${n}»`, name: 'напис замість цифр', why: 'такий номер замовляють окремо, у звичайній серії його не буває', odds: WORD_ODDS, hl: ['num'] });
+    }
     if (dRule) {
       odds *= dRule.odds;
       parts.push({ label: `Цифри «${n}»`, name: dRule.name, why: dRule.why(n), odds: dRule.odds, hl: ['num'] });
@@ -138,8 +154,13 @@
       odds *= lRule.odds;
       parts.push({ label: `Літери «${cyr(r)}…${cyr(s)}»`, name: lRule.name, why: lRule.why(r, s), odds: lRule.odds, hl: lRule.parts });
     }
+    if (VARIANTS[v]) {
+      const V = VARIANTS[v];
+      odds *= V.odds;
+      parts.push({ label: V.label, name: V.name, why: V.why, odds: V.odds, hl: [] });
+    }
     const tier = tierFor(odds);
-    return { r, n, s, odds, tier, parts, price: niceRound(odds * tier.mult) };
+    return { r, n, s, v, w, odds, tier, parts, price: niceRound(odds * tier.mult) };
   }
 
   // З чого складається сума: кожен рядок пояснення додає свою частину.
@@ -167,10 +188,14 @@
 
   const rnd = (k) => Math.floor(Math.random() * k);
   function randomPlate() {
+    if (Math.random() < 1 / WORD_ODDS) return evaluate('', WORDS[rnd(WORDS.length)], '', { w: true });
     const r = REGIONS[rnd(REGIONS.length)];
     const n = String(1 + rnd(9999)).padStart(4, '0');
     const s = LETTERS[rnd(12)] + LETTERS[rnd(12)];
-    return evaluate(r, n, s);
+    const x = Math.random();
+    const pd = 1 / VARIANTS.diamond.odds, pg = 1 / VARIANTS.gold.odds;
+    const v = x < pd ? 'diamond' : x < pd + pg ? 'gold' : '';
+    return evaluate(r, n, s, { v });
   }
 
   /* =========================================================
@@ -189,6 +214,9 @@
     collection: [],       // {id,r,n,s,odds,price,t}
     profile: { name: '', surname: '', age: '', avatar: '' },
     sound: true,
+    stats: { tiers: {}, regions: [], bond: 0, word: 0, gold: 0, diamond: 0 },
+    ach: {},                              // id досягнення → коли відкрито
+    daily: { last: '', streak: 0, best: 0 },
   };
 
   function load() {
@@ -196,17 +224,24 @@
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return;
       const s = JSON.parse(raw);
-      ['balance', 'earned', 'taps', 'found', 'sold', 'best', 'luckLvl', 'collection', 'sound'].forEach((k) => {
+      ['balance', 'earned', 'taps', 'found', 'sold', 'best', 'luckLvl', 'collection', 'sound', 'ach'].forEach((k) => {
         if (s[k] !== undefined) state[k] = s[k];
       });
       state.profile = Object.assign({ name: '', surname: '', age: '', avatar: '' }, s.profile || {});
       if (!Array.isArray(state.collection)) state.collection = [];
       // перерахувати ціни за новими правилами
       state.collection.forEach((it) => {
-        const ev = evaluate(it.r, it.n, it.s);
+        const ev = evaluate(it.r, it.n, it.s, it);
         it.odds = ev.odds;
         it.price = ev.price;
       });
+      state.daily = Object.assign({ last: '', streak: 0, best: 0 }, s.daily || {});
+      if (s.stats) {
+        state.stats = Object.assign(state.stats, s.stats);
+      } else {
+        // старе збереження: зібрати статистику з колекції
+        state.collection.forEach((it) => countFind(evaluate(it.r, it.n, it.s, it)));
+      }
     } catch (e) { /* немає сховища — граємо без збереження */ }
   }
   function save() {
@@ -214,6 +249,15 @@
   }
 
   const rollsPerTap = () => 1 + state.luckLvl;
+
+  function countFind(p) {
+    const st = state.stats;
+    st.tiers[p.tier.id] = (st.tiers[p.tier.id] || 0) + 1;
+    if (!p.w && REGION_NAME[p.r] && !st.regions.includes(REGION_NAME[p.r])) st.regions.push(REGION_NAME[p.r]);
+    if (!p.w && p.n === '0007') st.bond++;
+    if (p.w) st.word++;
+    if (p.v) st[p.v]++;
+  }
 
   /* =========================================================
    *  ФОРМАТУВАННЯ
@@ -223,7 +267,9 @@
   // завжди повна сума: 43 000 000, без «млн»
   const money = (x) => nf.format(Math.floor(x));
   const oddsText = (o) => '1 з ' + money(Math.round(o));
-  const plateText = (p) => `${cyr(p.r)} ${p.n} ${cyr(p.s)}`;
+  const plateText = (p) => (p.w ? p.n : `${cyr(p.r)} ${p.n} ${cyr(p.s)}`);
+  const regionText = (p) => (p.w ? 'Іменний номер' : `${cyr(p.r)} — ${REGION_NAME[p.r]}`);
+  const plateKind = (p) => (p.w ? ' word' : '') + (p.v ? ' v-' + p.v : '');
 
   /* =========================================================
    *  DOM
@@ -244,16 +290,20 @@
   const hintEl = $('hint');
   const chestBtn = $('chestBtn');
   const chestBadge = $('chestBadge');
-  const tapinfoEl = $('tapinfo');
+  const achPop = $('achPop');
+  const giftBtn = $('giftBtn');
   const toastEl = $('toast');
 
   function fillPlate(el, p) {
     el.querySelector('.reg').textContent = cyr(p.r);
     el.querySelector('.num').textContent = p.n;
     el.querySelector('.ser').textContent = cyr(p.s);
+    el.classList.remove('word', 'v-gold', 'v-diamond');
+    if (p.w) el.classList.add('word');
+    if (p.v) el.classList.add('v-' + p.v);
   }
   function plateHTML(p, tierId) {
-    return `<div class="plate tier-${tierId}"><div class="plate-flag"><span class="flag"><i></i><i></i></span><span class="ua">UA</span></div>` +
+    return `<div class="plate tier-${tierId}${plateKind(p)}"><div class="plate-flag"><span class="flag"><i></i><i></i></span><span class="ua">UA</span></div>` +
       `<div class="plate-text"><span class="reg">${cyr(p.r)}</span><span class="num">${p.n}</span><span class="ser">${cyr(p.s)}</span></div></div>`;
   }
 
@@ -445,7 +495,7 @@
       : p.parts.map((part) => ({ text: `${part.label} — ${part.name}: ${part.why}. Шанс ${oddsText(part.odds)}`, amount: 0 }));
     const total = lines.reduce((a, l) => a + l.amount, 0);
 
-    findEl.className = 'find show tier-' + p.tier.id;
+    findEl.className = 'find show tier-' + p.tier.id + (opts.space && lines.length >= 4 ? ' dense' : '');
     findEl.innerHTML =
       `<div class="find-head"><span class="badge">${p.tier.name}</span><span class="find-plate">${plateText(p)}</span></div>` +
       (money_ ? `<div class="find-sum"><span>Нараховано за номер</span><b class="psum">+0 ₴</b></div>` : '') +
@@ -573,6 +623,7 @@
     const p = spaceItem;
     spaceItem = null;
     if (p) setTimeout(() => restartAnim(chestBtn, 'chest-shake'), 300);
+    setTimeout(checkAch, 700);
     lockUntil = performance.now() + 250;
     swallowClickUntil = performance.now() + 450;
   }
@@ -604,7 +655,7 @@
 
   let forced = null;     // для перевірки: plateGame.force('AA', '7777', 'AA')
   function roll() {
-    if (forced) { const p = evaluate(...forced); forced = null; return p; }
+    if (forced) { const p = evaluate(...forced); forced = null; return p; }  // [r, n, s, {v, w}]
     let best = null;
     for (let i = 0; i < rollsPerTap(); i++) {
       const p = randomPlate();
@@ -625,7 +676,7 @@
 
     const p = roll();
     fillPlate(plateEl, p);
-    regionEl.textContent = `${cyr(p.r)} — ${REGION_NAME[p.r]}`;
+    regionEl.textContent = regionText(p);
     plateEl.classList.remove('glow', 'soft');
     plateEl.querySelectorAll('.hl').forEach((s) => s.classList.remove('hl'));
     setTierClass(plateEl, null);
@@ -634,6 +685,7 @@
 
     if (p.odds >= COLLECT_MIN) onRare(p);
     else if (p.odds >= TIERS[1].min) onNice(p);
+    checkAch();
   }
 
   function highlight(p, soft) {
@@ -652,10 +704,11 @@
   function onRare(p) {
     state.collection.push({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-      r: p.r, n: p.n, s: p.s, odds: p.odds, price: p.price, t: Date.now(),
+      r: p.r, n: p.n, s: p.s, v: p.v, w: p.w, odds: p.odds, price: p.price, t: Date.now(),
     });
     state.found++;
-    if (!state.best || p.odds > state.best.odds) state.best = { r: p.r, n: p.n, s: p.s, odds: p.odds };
+    countFind(p);
+    if (!state.best || p.odds > state.best.odds) state.best = { r: p.r, n: p.n, s: p.s, v: p.v, w: p.w, odds: p.odds };
     credit(p.price);
     updateChestBadge();
     save();
@@ -682,7 +735,7 @@
       runFind(p, {
         money: true, note,
         onPay: (x) => { release(x); coinBurst(5, findEl.querySelector('.psum') || plateEl); },
-        onDone: () => { setTimeout(() => restartAnim(chestBtn, 'chest-shake'), 600); },
+        onDone: () => { setTimeout(() => restartAnim(chestBtn, 'chest-shake'), 600); checkAch(); },
       });
     }
   }
@@ -708,14 +761,159 @@
   }, { passive: false });
   document.addEventListener('gesturestart', (e) => e.preventDefault());
 
-  function renderTop() {
-    tapinfoEl.textContent = state.luckLvl ? `🍀 Удача: ${rollsPerTap()} номерів за клік` : '';
-  }
+  function renderTop() { /* удачу видно в «Покращеннях» */ }
   function updateChestBadge() {
     const n = state.collection.length;
     chestBadge.hidden = n === 0;
     chestBadge.textContent = n > 99 ? '99+' : String(n);
   }
+
+
+  /* =========================================================
+   *  ДОСЯГНЕННЯ
+   * ========================================================= */
+
+  const TIER_ORDER = TIERS.map((t) => t.id);
+  const foundAtLeast = (tierId) => TIER_ORDER.slice(TIER_ORDER.indexOf(tierId))
+    .reduce((a, id) => a + (state.stats.tiers[id] || 0), 0);
+
+  const ACH = [
+    { id: 'tap100',  icon: '👆', name: 'Розминка',        desc: 'Зроби 100 кліків',                         reward: 200,    prog: () => [state.taps, 100] },
+    { id: 'tap1k',   icon: '✌️', name: 'Клікер',          desc: 'Зроби 1 000 кліків',                       reward: 2000,   prog: () => [state.taps, 1000] },
+    { id: 'tap10k',  icon: '🦾', name: 'Залізний палець', desc: 'Зроби 10 000 кліків',                      reward: 20000,  prog: () => [state.taps, 10000] },
+    { id: 'rare',    icon: '🟢', name: 'Перша знахідка',  desc: 'Знайди рідкісний номер',                   reward: 100,    prog: () => [foundAtLeast('rare'), 1] },
+    { id: 'epic',    icon: '🟣', name: 'Епічно!',         desc: 'Знайди епічний номер',                     reward: 3000,   prog: () => [foundAtLeast('epic'), 1] },
+    { id: 'legend',  icon: '🟡', name: 'Легенда',         desc: 'Знайди легендарний номер',                 reward: 50000,  prog: () => [foundAtLeast('legend'), 1] },
+    { id: 'myth',    icon: '🔴', name: 'Міф',             desc: 'Знайди міфічний номер',                    reward: 500000, prog: () => [foundAtLeast('myth'), 1] },
+    { id: 'col10',   icon: '📦', name: 'Колекціонер',     desc: 'Тримай у скрині 10 номерів',               reward: 1000,   prog: () => [state.collection.length, 10] },
+    { id: 'col50',   icon: '🏛️', name: 'Музей номерів',   desc: 'Тримай у скрині 50 номерів',               reward: 10000,  prog: () => [state.collection.length, 50] },
+    { id: 'reg10',   icon: '🗺️', name: 'Мандрівник',      desc: 'Знайди рідкісні номери з 10 регіонів',     reward: 2000,   prog: () => [state.stats.regions.length, 10] },
+    { id: 'regAll',  icon: '🇺🇦', name: 'Уся Україна',     desc: `Знайди рідкісні номери з усіх ${REGION_LIST.length} регіонів`, reward: 100000, prog: () => [state.stats.regions.length, REGION_LIST.length] },
+    { id: 'bond',    icon: '🕶️', name: 'Агент 007',       desc: 'Знайди номер з цифрами 0007',              reward: 7007,   prog: () => [state.stats.bond, 1] },
+    { id: 'word',    icon: '🔤', name: 'Іменний',         desc: 'Знайди іменний номер',                     reward: 5000,   prog: () => [state.stats.word, 1] },
+    { id: 'gold',    icon: '🥇', name: 'Золото',          desc: 'Знайди золотий номер',                     reward: 2000,   prog: () => [state.stats.gold, 1] },
+    { id: 'diamond', icon: '💎', name: 'Діамант',         desc: 'Знайди діамантовий номер',                 reward: 20000,  prog: () => [state.stats.diamond, 1] },
+    { id: 'sell10',  icon: '🤝', name: 'Продавець',       desc: 'Продай 10 номерів',                        reward: 1000,   prog: () => [state.sold, 10] },
+    { id: 'million', icon: '💰', name: 'Мільйонер',       desc: 'Май на рахунку 1 000 000 ₴',               reward: 10000,  prog: () => [state.balance, 1000000] },
+    { id: 'week',    icon: '📅', name: 'Тиждень поспіль', desc: 'Забирай щоденний подарунок 7 днів поспіль', reward: 10000,  prog: () => [state.daily.best, 7] },
+  ];
+
+  const achQueue = [];
+  let achShowing = false;
+
+  function checkAch() {
+    if (seq && !seq.finished) return;          // спершу хай допишеться пояснення
+    let any = false;
+    ACH.forEach((a) => {
+      if (state.ach[a.id]) return;
+      const [cur, target] = a.prog();
+      if (cur >= target) {
+        state.ach[a.id] = Date.now();
+        state.balance += a.reward;
+        state.earned += a.reward;
+        achQueue.push(a);
+        any = true;
+      }
+    });
+    if (any) save();
+    flushAch();
+  }
+
+  function flushAch() {
+    if (spaceOn || achShowing || !achQueue.length) return;
+    const a = achQueue.shift();
+    achShowing = true;
+    achPop.querySelector('.ach-pop-ico').textContent = a.icon;
+    achPop.querySelector('.ach-pop-name').textContent = a.name;
+    achPop.querySelector('.ach-pop-reward').textContent = '+' + money(a.reward) + ' ₴';
+    restartAnim(achPop, 'show');
+    [784, 988, 1175, 1568].forEach((f, i) => beep(f, 0.18, 'triangle', 0.05, i * 0.08));
+    vibrate([30, 40, 30]);
+    setTimeout(() => {
+      achPop.classList.remove('show');
+      achShowing = false;
+      setTimeout(flushAch, 350);
+    }, 2800);
+  }
+
+  function renderAch() {
+    const done = ACH.filter((a) => state.ach[a.id]).length;
+    $('achSum').innerHTML = `<b>${done} з ${ACH.length}</b> відкрито · нагорода приходить на рахунок одразу`;
+    const list = ACH.slice().sort((a, b) => (!!state.ach[b.id] - !!state.ach[a.id]) || 0);
+    $('achList').innerHTML = list.map((a) => {
+      const got = !!state.ach[a.id];
+      const [cur, target] = a.prog();
+      const pct = Math.min(100, Math.floor((Math.min(cur, target) / target) * 100));
+      return `<div class="ach${got ? ' got' : ''}">` +
+        `<span class="ach-ico">${a.icon}</span>` +
+        `<div class="ach-body"><b>${a.name}</b><span>${a.desc}</span>` +
+        (got ? '' : `<div class="ach-bar"><i style="width:${pct}%"></i></div><small>${money(Math.min(cur, target))} / ${money(target)}</small>`) +
+        `</div><span class="ach-reward">${got ? '✓ Отримано' : '+' + money(a.reward) + ' ₴'}</span></div>`;
+    }).join('');
+  }
+
+  /* =========================================================
+   *  ЩОДЕННИЙ ПОДАРУНОК
+   * ========================================================= */
+
+  const DAILY = [500, 1000, 2000, 4000, 7000, 12000, 25000];
+  const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  function dailyInfo() {
+    const now = new Date();
+    const y = new Date(now); y.setDate(now.getDate() - 1);
+    const d = state.daily;
+    const available = d.last !== dayKey(now);
+    const continues = d.last === dayKey(y);
+    // який день серії зараз (1…7): наступний, якщо можна забрати, або вже забраний сьогодні
+    const day = available ? (continues ? (d.streak % 7) + 1 : 1) : ((d.streak - 1) % 7) + 1;
+    return { available, continues, day };
+  }
+
+  function renderDaily() {
+    const info = dailyInfo();
+    $('dailyGrid').innerHTML = DAILY.map((amount, i) => {
+      const n = i + 1;
+      const cls = n < info.day || (n === info.day && !info.available) ? 'done' : n === info.day ? 'today' : '';
+      return `<div class="day ${cls}${n === 7 ? ' big' : ''}"><span>День ${n}</span><b>${n < info.day || (n === info.day && !info.available) ? '✓' : money(amount) + ' ₴'}</b></div>`;
+    }).join('');
+    const btn = $('dailyClaim');
+    if (info.available) {
+      btn.disabled = false;
+      btn.textContent = `Забрати ${money(DAILY[info.day - 1])} ₴`;
+    } else {
+      const now = new Date();
+      const next = new Date(now); next.setHours(24, 0, 0, 0);
+      const sec = Math.max(0, Math.floor((next - now) / 1000));
+      const hh = String(Math.floor(sec / 3600)).padStart(2, '0');
+      const mm = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+      const ss = String(sec % 60).padStart(2, '0');
+      btn.disabled = true;
+      btn.textContent = `Наступний подарунок через ${hh}:${mm}:${ss}`;
+    }
+    updateGift();
+  }
+
+  function updateGift() {
+    giftBtn.classList.toggle('ready', dailyInfo().available);
+  }
+
+  $('dailyClaim').addEventListener('click', () => {
+    const info = dailyInfo();
+    if (!info.available) return;
+    const d = state.daily;
+    d.streak = info.continues ? d.streak + 1 : 1;
+    d.last = dayKey(new Date());
+    d.best = Math.max(d.best, d.streak);
+    const amount = DAILY[info.day - 1];
+    state.balance += amount;
+    state.earned += amount;
+    coinBurst(12, $('dailyClaim'));
+    [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.2, 'triangle', 0.06, i * 0.09));
+    toast(`🎁 +${money(amount)} ₴ — до зустрічі завтра!`);
+    save();
+    renderDaily();
+    setTimeout(checkAch, 900);
+  });
 
   /* =========================================================
    *  ПРОФІЛЬ / АВАТАРКА
@@ -756,7 +954,9 @@
       stat(money(state.taps), 'кліків') +
       stat(money(state.found), 'рідкісних знайдено') +
       stat(money(state.earned) + ' ₴', 'зароблено всього') +
-      stat(state.best ? plateText(state.best) : '—', 'найкраща знахідка');
+      stat(state.best ? plateText(state.best) : '—', 'найкраща знахідка') +
+      stat(`${ACH.filter((a) => state.ach[a.id]).length} з ${ACH.length}`, 'досягнень') +
+      stat(state.daily.best ? `${state.daily.best} дн.` : '—', 'найдовша серія подарунків');
     openModal('profileModal');
   }
 
@@ -836,13 +1036,13 @@
       return;
     }
     box.innerHTML = list.map((it, i) => {
-      const ev = evaluate(it.r, it.n, it.s);
+      const ev = evaluate(it.r, it.n, it.s, it);
       const why = ev.parts.map((x) => x.name).join(' + ');
       const isConfirm = confirmId === it.id;
       return `<div class="item tier-${ev.tier.id}" style="animation-delay:${Math.min(i, 12) * 30}ms">` +
         plateHTML(it, ev.tier.id) +
         `<div class="item-info">` +
-          `<div class="item-top"><span class="badge">${ev.tier.name}</span><span>${oddsText(it.odds)} · ${REGION_NAME[it.r]}</span></div>` +
+          `<div class="item-top"><span class="badge">${ev.tier.name}</span><span>${oddsText(it.odds)} · ${it.w ? 'іменний номер' : REGION_NAME[it.r]}</span></div>` +
           `<div class="item-why">${why}</div>` +
           `<div class="item-price">Ціна: <b>${money(it.price)} ₴</b></div>` +
         `</div>` +
@@ -851,7 +1051,7 @@
     }).join('');
     box.querySelectorAll('.item .plate').forEach((pl, i) => {
       const it = list[i];
-      evaluate(it.r, it.n, it.s).parts.forEach((part) => part.hl.forEach((c) => pl.querySelector('.' + c).classList.add('hl')));
+      evaluate(it.r, it.n, it.s, it).parts.forEach((part) => part.hl.forEach((c) => pl.querySelector('.' + c).classList.add('hl')));
     });
   }
 
@@ -872,6 +1072,7 @@
     const [it] = state.collection.splice(idx, 1);
     state.balance += it.price;
     state.sold++;
+    checkAch();
     updateChestBadge();
     renderChest();
     restartAnim(walletEl, 'pulse');
@@ -903,7 +1104,13 @@
       `<div class="upg"><h3>🍀 Удача</h3><span class="lvl">Рівень ${state.luckLvl}/${LUCK_MAX} · ${rollsPerTap()} ${rollsPerTap() === 1 ? 'номер' : 'номери'} за клік</span>` +
         `<p>Кожен клік перебирає більше номерів і показує найрідкісніший.</p>` +
         `<button class="btn small" data-buy="luck" ${lMax || state.balance < luckCost() ? 'disabled' : ''}>${lMax ? 'Макс.' : money(luckCost()) + ' ₴'}</button></div>` +
-      `<div class="tiers"><h3>Рідкості</h3>${tierRows}</div>`;
+      `<div class="tiers"><h3>Рідкості</h3>${tierRows}</div>` +
+      `<div class="tiers"><h3>Особливі номери</h3>` +
+        `<div class="tier-row"><span class="kind-chip k-gold">Золотий</span><span>шанс 1 з ${money(VARIANTS.gold.odds)}</span></div>` +
+        `<div class="tier-row"><span class="kind-chip k-diamond">Діамантовий</span><span>шанс 1 з ${money(VARIANTS.diamond.odds)}</span></div>` +
+        `<div class="tier-row"><span class="kind-chip k-word">Іменний</span><span>шанс 1 з ${money(WORD_ODDS)} · напис замість цифр</span></div>` +
+        `<p class="shop-note">Золото й діамант множать рідкість будь-якого номера. Наприклад, золотий дзеркальний номер: 1 з 111 × 200 = 1 з 22 200.</p>` +
+      `</div>`;
   }
   function updateShopButtons() {
     const l = $('shopList').querySelector('[data-buy="luck"]');
@@ -927,13 +1134,16 @@
    * ========================================================= */
 
   let shopTimer = 0;
+  let dailyTimer = 0;
   function openModal(id) {
     $(id).hidden = false;
     if (id === 'shopModal') { renderShop(); shopTimer = setInterval(updateShopButtons, 500); }
+    if (id === 'dailyModal') { renderDaily(); dailyTimer = setInterval(renderDaily, 1000); }
   }
   function closeModal(id) {
     $(id).hidden = true;
     if (id === 'shopModal') clearInterval(shopTimer);
+    if (id === 'dailyModal') clearInterval(dailyTimer);
   }
   document.querySelectorAll('.modal').forEach((m) => {
     m.addEventListener('click', (e) => {
@@ -947,6 +1157,8 @@
   $('avatarBtn').addEventListener('click', openProfile);
   chestBtn.addEventListener('click', () => { confirmId = null; renderChest(); openModal('chestModal'); });
   $('shopBtn').addEventListener('click', () => openModal('shopModal'));
+  $('achBtn').addEventListener('click', () => { renderAch(); openModal('achModal'); });
+  giftBtn.addEventListener('click', () => openModal('dailyModal'));
 
   /* =========================================================
    *  СТАРТ
@@ -957,18 +1169,22 @@
 
   const first = randomPlate();
   fillPlate(plateEl, first);
-  regionEl.textContent = `${cyr(first.r)} — ${REGION_NAME[first.r]}`;
+  regionEl.textContent = regionText(first);
   if (state.taps > 0) hintEl.classList.add('hide');
 
   renderAvatar();
   updateChestBadge();
+  updateGift();
+  setInterval(updateGift, 30000);
+  if (dailyInfo().available) setTimeout(() => openModal('dailyModal'), 900);
+  setTimeout(checkAch, 1500);
   renderTop();
   requestAnimationFrame(frame);
 
-  setInterval(save, 3000);
+  setInterval(() => { checkAch(); save(); }, 3000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
   window.addEventListener('pagehide', save);
 
   // для тестів у консолі
-  window.plateGame = { state, evaluate, breakdown, DIGIT_RULES, LETTER_RULES, TIERS, force: (r, n, s) => { forced = [r, n, s]; } };
+  window.plateGame = { state, evaluate, breakdown, DIGIT_RULES, LETTER_RULES, TIERS, force: (r, n, s, x) => { forced = [r, n, s, x || {}]; }, checkAch, dailyInfo };
 })();
