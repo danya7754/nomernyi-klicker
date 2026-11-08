@@ -550,6 +550,7 @@
     spaceOn = false;
     document.body.classList.remove('space');
     continueEl.classList.remove('show');
+    findEl.classList.add('old');
     setTierClass(plateZone, null);
     const p = spaceItem;
     spaceItem = null;
@@ -688,6 +689,12 @@
     }
   });
   plateEl.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // гра стоїть на місці: свайпи не рухають сторінку (прокручуються лише вікна колекції, профілю й покращень)
+  document.addEventListener('touchmove', (e) => {
+    if (!e.target.closest || !e.target.closest('.sheet')) e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
 
   function renderTop() {
     tapinfoEl.textContent = state.luckLvl ? `🍀 Удача: ${rollsPerTap()} номерів за клік` : '';
