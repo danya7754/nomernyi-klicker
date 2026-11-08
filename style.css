@@ -369,12 +369,14 @@ body.space .continue.show { visibility: visible; animation: blinkSoft 1.4s ease-
   animation: nebula 16s ease-in-out infinite alternate;
 }
 @keyframes nebula { to { transform: translate(3%, -4%) scale(1.08) rotate(4deg); } }
-body.space #space { opacity: 1; pointer-events: auto; }
+#space { visibility: hidden; transition: opacity .7s ease, visibility 0s linear .7s; }
+body.space #space { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity .7s ease; }
 .stars {
   position: absolute; left: 50%; top: 50%;
   width: 170vmax; height: 170vmax; margin: -85vmax 0 0 -85vmax;
-  animation: starSpin 160s linear infinite;
 }
+/* зорі крутяться лише тоді, коли космос видно */
+body.space .stars { animation: starSpin 160s linear infinite; }
 .star { position: absolute; border-radius: 50%; background: #fff; animation: twinkle 3s ease-in-out infinite; }
 @keyframes starSpin { to { transform: rotate(360deg); } }
 @keyframes twinkle { 50% { opacity: .2; transform: scale(.6); } }
@@ -535,10 +537,14 @@ body.space .region { animation: driftB 8s ease-in-out -2s infinite; }
   padding: 11px 12px; border-radius: 16px;
   background: rgba(10, 28, 64, .35);
   border: 1px solid var(--tc);
-  animation: lineIn .3s ease-out both;
+  /* номери за межами екрана телефон не малює — так скриня не забирає всю пам'ять */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 250px;
 }
+.item .plate.v-diamond::before { animation: none; }
+.chest-list .more { width: 100%; padding: 12px; }
 .item.tier-legend, .item.tier-myth { background: linear-gradient(135deg, rgba(10, 28, 64, .5), var(--tc-soft)); }
-.item .plate { grid-column: 1 / -1; --w: min(300px, calc(100vw - 64px)); cursor: default; box-shadow: 0 0 0 1px #fff, 0 0 12px var(--tc-soft); }
+.item .plate { grid-column: 1 / -1; --w: min(300px, calc(100vw - 64px)); cursor: default; box-shadow: 0 0 0 1px #fff; }
 .item-info { grid-column: 1; display: grid; gap: 4px; min-width: 0; }
 .item-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; }
 .item-why { font-size: 13px; opacity: .9; line-height: 1.35; }

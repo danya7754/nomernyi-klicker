@@ -1025,6 +1025,8 @@
    * ========================================================= */
 
   let chestSort = 'price';
+  const CHEST_PAGE = 30;          // скільки номерів показувати за раз (менше пам'яті на телефоні)
+  let chestShown = CHEST_PAGE;
   let confirmId = null;
   let confirmTimer = 0;
 
@@ -1045,11 +1047,12 @@
       box.innerHTML = '<div class="chest-empty">Скриня поки порожня.<br>Клікай по номеру — рідкісні знаки (від «1 з 100») потраплять сюди автоматично.<br><br>Їх можна зберігати в колекції або продати за повну ціну.</div>';
       return;
     }
-    box.innerHTML = list.map((it, i) => {
+    const page = list.slice(0, chestShown);
+    box.innerHTML = page.map((it) => {
       const ev = evaluate(it.r, it.n, it.s, it);
       const why = ev.parts.map((x) => x.name).join(' + ');
       const isConfirm = confirmId === it.id;
-      return `<div class="item tier-${ev.tier.id}" style="animation-delay:${Math.min(i, 12) * 30}ms">` +
+      return `<div class="item tier-${ev.tier.id}">` +
         plateHTML(it, ev.tier.id) +
         `<div class="item-info">` +
           `<div class="item-top"><span class="badge">${ev.tier.name}</span><span>${oddsText(it.odds)} · ${it.w ? 'іменний номер' : REGION_NAME[it.r]}</span></div>` +
@@ -1058,14 +1061,24 @@
         `</div>` +
         `<button class="btn small sell${isConfirm ? ' confirm' : ''}" data-sell="${it.id}">${isConfirm ? 'Точно?' : 'Продати'}</button>` +
         `</div>`;
-    }).join('');
+    }).join('') +
+      (list.length > page.length
+        ? `<button class="btn ghost more" data-more>Показати ще (${money(Math.min(CHEST_PAGE, list.length - page.length))} з ${money(list.length - page.length)})</button>`
+        : '');
     box.querySelectorAll('.item .plate').forEach((pl, i) => {
-      const it = list[i];
+      const it = page[i];
       evaluate(it.r, it.n, it.s, it).parts.forEach((part) => part.hl.forEach((c) => pl.querySelector('.' + c).classList.add('hl')));
     });
   }
 
   $('chestList').addEventListener('click', (e) => {
+    if (e.target.closest('[data-more]')) {
+      const top = $('chestList').scrollTop;
+      chestShown += CHEST_PAGE;
+      renderChest();
+      $('chestList').scrollTop = top;
+      return;
+    }
     const btn = e.target.closest('[data-sell]');
     if (!btn) return;
     const id = btn.dataset.sell;
@@ -1094,6 +1107,8 @@
 
   document.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => {
     chestSort = b.dataset.sort;
+    chestShown = CHEST_PAGE;
+    $('chestList').scrollTop = 0;
     document.querySelectorAll('[data-sort]').forEach((x) => x.classList.toggle('active', x === b));
     renderChest();
   }));
@@ -1165,7 +1180,7 @@
   });
 
   $('avatarBtn').addEventListener('click', openProfile);
-  chestBtn.addEventListener('click', () => { confirmId = null; renderChest(); openModal('chestModal'); });
+  chestBtn.addEventListener('click', () => { confirmId = null; chestShown = CHEST_PAGE; renderChest(); openModal('chestModal'); $('chestList').scrollTop = 0; });
   $('shopBtn').addEventListener('click', () => openModal('shopModal'));
   $('achBtn').addEventListener('click', () => { renderAch(); openModal('achModal'); });
   giftBtn.addEventListener('click', () => openModal('dailyModal'));
