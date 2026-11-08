@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = '1.5';   // показується в профілі; міняй разом з ?v= в index.html
+  const APP_VERSION = '1.6';   // показується в профілі; міняй разом з ?v= в index.html
 
   /* =========================================================
    *  ДАНІ: літери, регіони
@@ -116,7 +116,8 @@
     { id: 'legend', min: 30000,  name: 'Легендарний', mult: 5 },
     { id: 'myth',   min: 500000, name: 'Міфічний',    mult: 20 },
   ];
-  const COLLECT_MIN = 100;                 // з «Рідкісного» — гроші та скриня
+  const COLLECT_MIN = 100;                 // з «Рідкісного» — гроші й пояснення
+  const CHEST_MIN = 1000;                  // у скриню — лише з «Епічного»
   const SPACE_TIERS = ['epic', 'legend', 'myth'];
 
   // Особливі номери: покриття знака та іменні написи
@@ -723,10 +724,13 @@
   }
 
   function onRare(p) {
-    state.collection.push({
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-      r: p.r, n: p.n, s: p.s, v: p.v, w: p.w, odds: p.odds, price: p.price, t: Date.now(),
-    });
+    const toChest = p.odds >= CHEST_MIN;
+    if (toChest) {
+      state.collection.push({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        r: p.r, n: p.n, s: p.s, v: p.v, w: p.w, odds: p.odds, price: p.price, t: Date.now(),
+      });
+    }
     state.found++;
     countFind(p);
     if (!state.best || p.odds > state.best.odds) state.best = { r: p.r, n: p.n, s: p.s, v: p.v, w: p.w, odds: p.odds };
@@ -739,7 +743,9 @@
     setTierClass(bannerEl, p.tier.id);
     restartAnim(bannerEl, 'show');
     sfxFind(p.tier.id);
-    const note = `📦 Номер додано в скриню — його можна зберегти або продати за ${money(p.price)} ₴`;
+    const note = toChest
+      ? `📦 Номер додано в скриню — його можна зберегти або продати за ${money(p.price)} ₴`
+      : '💰 Гроші вже на рахунку. Рідкісні номери в скриню не йдуть — туди потрапляють від «Епічного»';
 
     if (SPACE_TIERS.includes(p.tier.id)) {
       vibrate([60, 60, 120, 60, 200]);
@@ -756,7 +762,7 @@
       runFind(p, {
         money: true, note,
         onPay: (x) => { release(x); coinBurst(5, findEl.querySelector('.psum') || plateEl); },
-        onDone: () => { setTimeout(() => restartAnim(chestBtn, 'chest-shake'), 600); checkAch(); },
+        onDone: () => { if (toChest) setTimeout(() => restartAnim(chestBtn, 'chest-shake'), 600); checkAch(); },
       });
     }
   }
@@ -1056,7 +1062,7 @@
 
     const box = $('chestList');
     if (!list.length) {
-      box.innerHTML = '<div class="chest-empty">Скриня поки порожня.<br>Клікай по номеру — рідкісні знаки (від «1 з 100») потраплять сюди автоматично.<br><br>Їх можна зберігати в колекції або продати за повну ціну.</div>';
+      box.innerHTML = '<div class="chest-empty">Скриня поки порожня.<br>Клікай по номеру — епічні, легендарні й міфічні знаки (від «1 з 1 000») потраплять сюди автоматично.<br><br>Їх можна зберігати в колекції або продати за повну ціну.</div>';
       return;
     }
     const lite = !!state.lite;
@@ -1152,7 +1158,7 @@
     const lMax = state.luckLvl >= LUCK_MAX;
     const tierRows = TIERS.slice(1).map((t) =>
       `<div class="tier-row tier-${t.id}"><span class="badge">${t.name}</span><span>шанс від 1 з ${money(t.min)}` +
-      (t.id === 'nice' ? ' · без нагороди' : t.mult > 1 ? ` · ціна ×${t.mult}` : '') + `</span></div>`).join('');
+      (t.id === 'nice' ? ' · без нагороди' : t.id === 'rare' ? ' · гроші, без скрині' : ` · ціна ×${t.mult} · у скриню`) + `</span></div>`).join('');
     $('shopList').innerHTML =
       `<div class="upg"><h3>🍀 Удача</h3><span class="lvl">Рівень ${state.luckLvl}/${LUCK_MAX} · ${rollsPerTap()} ${rollsPerTap() === 1 ? 'номер' : 'номери'} за клік</span>` +
         `<p>Кожен клік перебирає більше номерів і показує найрідкісніший.</p>` +
@@ -1247,8 +1253,23 @@
     save();
   }
   flag('nk-booting', '1');
-  setTimeout(() => flag('nk-booting', null), 5000);
+  setTimeout(() => flag('nk-booting', null), 3000);
+  // звичайне закриття гри — не падіння
+  window.addEventListener('pagehide', () => { flag('nk-booting', null); flag('nk-chest-opening', null); });
   document.body.classList.toggle('lite', !!state.lite);
+
+  // Рідкісні номери більше не зберігаються в скрині: старі продаємо за повну ціну
+  {
+    const old = state.collection.filter((it) => it.odds < CHEST_MIN);
+    if (old.length) {
+      const sum = old.reduce((a, it) => a + it.price, 0);
+      state.collection = state.collection.filter((it) => it.odds >= CHEST_MIN);
+      state.balance += sum;
+      shown = lastTarget = state.balance;
+      save();
+      setTimeout(() => toast(`${money(old.length)} рідкісних номерів зі скрині продано за ${money(sum)} ₴`), 1600);
+    }
+  }
 
   const first = randomPlate();
   fillPlate(plateEl, first);
