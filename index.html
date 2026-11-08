@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1.4">
 </head>
 <body>
   <!-- живий фон -->
@@ -137,6 +137,7 @@
         <label>Вік<input id="fAge" type="number" inputmode="numeric" min="1" max="120"></label>
         <label class="row"><input type="checkbox" id="fSound"> Звук</label>
         <div class="stats" id="profileStats"></div>
+        <p class="version" id="appVersion"></p>
         <button class="btn" type="submit">Зберегти</button>
       </form>
     </div>
@@ -201,6 +202,6 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="game.js"></script>
+  <script src="game.js?v=1.4"></script>
 </body>
 </html>

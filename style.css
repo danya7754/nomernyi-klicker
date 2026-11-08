@@ -525,6 +525,11 @@ body.space .region { animation: driftB 8s ease-in-out -2s infinite; }
 .stat b { display: block; font-size: 16px; line-height: 1.25; color: var(--gold); overflow-wrap: anywhere; }
 .stat span { font-size: 12px; opacity: .8; }
 
+/* поки відкрита скриня чи досягнення — гра під ними не малюється */
+body.sheet-open #bgfx, body.sheet-open .stage, body.sheet-open .bottom { visibility: hidden; }
+body.sheet-open .wallet, body.sheet-open .avatar-btn { animation: none; }
+.version { margin: 0; font-size: 12px; opacity: .6; text-align: center; }
+
 /* колекція */
 .chest-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
 .chest-tools { display: flex; gap: 8px; margin-bottom: 10px; }

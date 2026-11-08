@@ -1,6 +1,8 @@
 (() => {
   'use strict';
 
+  const APP_VERSION = '1.4';   // показується в профілі; міняй разом з ?v= в index.html
+
   /* =========================================================
    *  ДАНІ: літери, регіони
    * ========================================================= */
@@ -967,6 +969,7 @@
       stat(state.best ? plateText(state.best) : '—', 'найкраща знахідка') +
       stat(`${ACH.filter((a) => state.ach[a.id]).length} з ${ACH.length}`, 'досягнень') +
       stat(state.daily.best ? `${state.daily.best} дн.` : '—', 'найдовша серія подарунків');
+    $('appVersion').textContent = 'Версія гри ' + APP_VERSION;
     openModal('profileModal');
   }
 
@@ -1162,11 +1165,14 @@
   let dailyTimer = 0;
   function openModal(id) {
     $(id).hidden = false;
+    // під великим вікном гру не видно — зупиняємо її, щоб телефону вистачило пам'яті
+    if ($(id).querySelector('.sheet.tall')) document.body.classList.add('sheet-open');
     if (id === 'shopModal') { renderShop(); shopTimer = setInterval(updateShopButtons, 500); }
     if (id === 'dailyModal') { renderDaily(); dailyTimer = setInterval(renderDaily, 1000); }
   }
   function closeModal(id) {
     $(id).hidden = true;
+    if (!document.querySelector('.modal:not([hidden]) .sheet.tall')) document.body.classList.remove('sheet-open');
     if (id === 'shopModal') clearInterval(shopTimer);
     if (id === 'dailyModal') clearInterval(dailyTimer);
   }
