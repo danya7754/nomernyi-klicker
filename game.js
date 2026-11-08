@@ -220,14 +220,8 @@
    * ========================================================= */
 
   const nf = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 });
-  const nf1 = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 1 });
-  function money(x) {
-    x = Math.floor(x);
-    if (x >= 1e12) return nf1.format(x / 1e12) + ' трлн';
-    if (x >= 1e9) return nf1.format(x / 1e9) + ' млрд';
-    if (x >= 1e7) return nf1.format(x / 1e6) + ' млн';
-    return nf.format(x);
-  }
+  // завжди повна сума: 43 000 000, без «млн»
+  const money = (x) => nf.format(Math.floor(x));
   const oddsText = (o) => '1 з ' + money(Math.round(o));
   const plateText = (p) => `${cyr(p.r)} ${p.n} ${cyr(p.s)}`;
 
@@ -411,16 +405,28 @@
   }
 
   let shown = 0;
-  let lastFrame = performance.now();
+  let lastTarget = 0;
+  let tween = null;
   let lastBalanceText = '';
   function frame(now) {
-    const dt = Math.min(1, (now - lastFrame) / 1000);
-    lastFrame = now;
     const target = state.balance - hold;
-    const diff = target - shown;
-    shown = Math.abs(diff) < 1 ? target : shown + diff * Math.min(1, dt * 6);
+    if (target !== lastTarget) {
+      const gap = Math.abs(target - shown);
+      tween = { from: shown, to: target, start: now, dur: Math.min(1800, 600 + Math.log10(gap + 1) * 160) };
+      lastTarget = target;
+      walletEl.classList.toggle('counting', target > shown);
+    }
+    if (tween) {
+      const k = Math.min(1, (now - tween.start) / tween.dur);
+      shown = tween.from + (tween.to - tween.from) * (1 - Math.pow(1 - k, 3));
+      if (k >= 1) { shown = tween.to; tween = null; walletEl.classList.remove('counting'); }
+    }
     const txt = money(shown);
-    if (txt !== lastBalanceText) { balanceEl.textContent = txt; lastBalanceText = txt; }
+    if (txt !== lastBalanceText) {
+      balanceEl.textContent = txt;
+      lastBalanceText = txt;
+      walletEl.classList.toggle('long', txt.length > 11);
+    }
     requestAnimationFrame(frame);
   }
 
@@ -450,7 +456,10 @@
     note.textContent = opts.note;
 
     const sumEls = [psum, opts.space ? gainEl : null].filter(Boolean);
-    const setSum = (v) => sumEls.forEach((el) => { el.textContent = '+' + money(v) + ' ₴'; });
+    const setSum = (v) => sumEls.forEach((el) => {
+      el.textContent = '+' + money(v) + ' ₴';
+      el.classList.toggle('long', el.textContent.length > 12);
+    });
     setSum(0);
 
     const rows = lines.map(() => {
@@ -483,9 +492,17 @@
       sumEls.forEach((el) => restartAnim(el, 'bump'));
     }
 
+    let paid = 0;
+    const pay = (x) => {
+      if (!money_ || x <= 0) return;
+      paid += x;
+      if (opts.onPay) opts.onPay(x);
+    };
+
     me.finish = () => {
       if (me.finished) return;
       me.finished = true;
+      pay(total - paid);
       rows.forEach((li, i) => {
         if (!li.isConnected) ul.appendChild(li);
         li.classList.remove('typing');
@@ -516,6 +533,7 @@
         if (money_) {
           showAmount(i);
           countTo(counted + lines[i].amount, opts.space ? 520 : 320);
+          pay(lines[i].amount);
           sfxLine(i);
         }
         await sleep(opts.space ? 380 : 120);
@@ -554,11 +572,7 @@
     setTierClass(plateZone, null);
     const p = spaceItem;
     spaceItem = null;
-    if (p) {
-      release(p.price);
-      coinBurst(Math.min(30, 10 + Math.round(Math.log10(p.odds) * 3)));
-      setTimeout(() => restartAnim(chestBtn, 'chest-shake'), 600);
-    }
+    if (p) setTimeout(() => restartAnim(chestBtn, 'chest-shake'), 300);
     lockUntil = performance.now() + 250;
     swallowClickUntil = performance.now() + 450;
   }
@@ -659,6 +673,7 @@
       enterSpace(p);
       runFind(p, {
         money: true, space: true, note,
+        onPay: (x) => { release(x); coinBurst(6, gainEl); },
         onDone: () => { spaceDoneAt = performance.now(); continueEl.classList.add('show'); },
       });
     } else {
@@ -666,11 +681,8 @@
       lockUntil = performance.now() + 500;
       runFind(p, {
         money: true, note,
-        onDone: () => {
-          release(p.price);
-          coinBurst(Math.min(16, 6 + Math.round(Math.log10(p.odds) * 2)));
-          setTimeout(() => restartAnim(chestBtn, 'chest-shake'), 600);
-        },
+        onPay: (x) => { release(x); coinBurst(5, findEl.querySelector('.psum') || plateEl); },
+        onDone: () => { setTimeout(() => restartAnim(chestBtn, 'chest-shake'), 600); },
       });
     }
   }
@@ -816,7 +828,7 @@
     $('chestStats').innerHTML =
       stat(money(list.length), 'номерів') +
       stat(money(total) + ' ₴', 'вартість') +
-      stat(rarest ? '1 з ' + (rarest >= 1e5 ? nf1.format(rarest / 1e6) + ' млн' : money(Math.round(rarest))) : '—', 'найрідкісніший');
+      stat(rarest ? oddsText(rarest) : '—', 'найрідкісніший');
 
     const box = $('chestList');
     if (!list.length) {
@@ -941,7 +953,7 @@
    * ========================================================= */
 
   load();
-  shown = state.balance;
+  shown = lastTarget = state.balance;
 
   const first = randomPlate();
   fillPlate(plateEl, first);

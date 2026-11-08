@@ -89,6 +89,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
   text-shadow: 0 2px 0 rgba(0, 0, 0, .2);
 }
 .wallet.pulse { animation: walletPulse .55s ease-out; }
+.wallet.counting { border-color: var(--gold); box-shadow: 0 0 22px rgba(255, 210, 90, .55); }
+.wallet.long .wallet-amount { font-size: 20px; }
+/* у космосі рахунок видно поверх темного фону */
+body.space .wallet { position: relative; z-index: 22; }
 @keyframes walletPulse { 35% { transform: scale(1.1); box-shadow: 0 0 24px rgba(255, 210, 90, .7); } }
 @keyframes floatSoft { 50% { transform: translateY(-3px); } }
 
@@ -249,6 +253,7 @@ body.space .banner.show { animation: bannerStay 1.8s ease-out forwards; }
   opacity: 0; pointer-events: none; transition: opacity .4s;
 }
 body.space .gain { opacity: 1; }
+.gain.long { font-size: 30px; }
 .gain.bump { animation: gainBump .35s ease-out; }
 @keyframes gainBump { 40% { transform: translateX(-50%) scale(1.18); } }
 
@@ -283,6 +288,7 @@ body.space .gain { opacity: 1; }
 .find-plate { font-family: "Roboto Condensed", "Arial Narrow", Arial, sans-serif; font-weight: 700; font-size: 15px; letter-spacing: .05em; opacity: .9; }
 .find-sum { display: flex; align-items: baseline; justify-content: space-between; margin: 8px 0 6px; }
 .find-sum > span { font-size: 13px; opacity: .85; }
+.find-sum b.long { font-size: 21px; }
 .find-sum b { font-size: 26px; color: var(--gold); font-variant-numeric: tabular-nums; }
 .find-sum b.bump { animation: sumBump .35s ease-out; }
 @keyframes sumBump { 40% { transform: scale(1.15); } }
@@ -462,7 +468,7 @@ body.space .region { animation: driftB 8s ease-in-out -2s infinite; }
 .form input:focus { border-color: var(--gold); }
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .stat { background: rgba(10, 28, 64, .35); border-radius: 12px; padding: 9px 11px; min-width: 0; }
-.stat b { display: block; font-size: 17px; color: var(--gold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat b { display: block; font-size: 16px; line-height: 1.25; color: var(--gold); overflow-wrap: anywhere; }
 .stat span { font-size: 12px; opacity: .8; }
 
 /* колекція */
