@@ -438,7 +438,16 @@
     (seqs[tierId] || []).forEach((f, i) => beep(f, 0.25, 'triangle', 0.06, i * 0.1));
   }
   const sfxLine = (i) => beep(880 + i * 140, 0.12, 'sine', 0.05);
-  const vibrate = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) { /* ignore */ } };
+  // У застосунку (Capacitor) — справжня віддача телефона, у браузері — vibrate, де він є
+  const native = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+  const Haptics = native && window.Capacitor.Plugins ? window.Capacitor.Plugins.Haptics : null;
+  const vibrate = (p) => {
+    try {
+      if (Haptics) Haptics.impact({ style: Array.isArray(p) ? 'HEAVY' : 'MEDIUM' });
+      else if (navigator.vibrate) navigator.vibrate(p);
+    } catch (e) { /* ignore */ }
+  };
+  const tapHaptic = () => { try { if (Haptics) Haptics.impact({ style: 'LIGHT' }); } catch (e) { /* ignore */ } };
 
   /* =========================================================
    *  РАХУНОК: гроші нараховуються, коли пояснення дописане
@@ -673,6 +682,7 @@
     state.taps++;
     tapFx(x, y);
     sfxTap();
+    tapHaptic();
 
     const p = roll();
     fillPlate(plateEl, p);
@@ -1184,6 +1194,13 @@
   setInterval(() => { checkAch(); save(); }, 3000);
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
   window.addEventListener('pagehide', save);
+
+  // Офлайн-режим для сайту (у застосунку файли й так лежать на телефоні)
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost') && !native) {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+  }
+  // Світлий текст у рядку стану застосунку
+  try { if (native && window.Capacitor.Plugins.StatusBar) window.Capacitor.Plugins.StatusBar.setStyle({ style: 'DARK' }); } catch (e) { /* ignore */ }
 
   // для тестів у консолі
   window.plateGame = { state, evaluate, breakdown, DIGIT_RULES, LETTER_RULES, TIERS, force: (r, n, s, x) => { forced = [r, n, s, x || {}]; }, checkAch, dailyInfo };
