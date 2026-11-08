@@ -1,0 +1,13 @@
+{
+  "appId": "com.danya7754.nomernyiklicker",
+  "appName": "Номерний клікер",
+  "webDir": "www",
+  "backgroundColor": "#3a6db0",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#3a6db0"
+  },
+  "android": {
+    "backgroundColor": "#3a6db0"
+  }
+}

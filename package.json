@@ -1,0 +1,24 @@
+{
+  "name": "nomernyi-klicker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Номерний клікер — мобільна гра з рідкісними українськими номерними знаками",
+  "scripts": {
+    "build": "node scripts/build-web.mjs",
+    "sync": "npm run build && cap sync",
+    "ios": "npm run sync && cap open ios",
+    "android": "npm run sync && cap open android",
+    "assets": "capacitor-assets generate --iconBackgroundColor '#3a6db0' --splashBackgroundColor '#3a6db0'"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/status-bar": "8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "4.0.0",
+    "@capacitor/cli": "8.6.0"
+  }
+}

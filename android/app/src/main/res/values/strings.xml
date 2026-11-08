@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Номерний клікер</string>
+    <string name="title_activity_main">Номерний клікер</string>
+    <string name="package_name">com.danya7754.nomernyiklicker</string>
+    <string name="custom_url_scheme">com.danya7754.nomernyiklicker</string>
+</resources>

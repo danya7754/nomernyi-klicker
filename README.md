@@ -44,3 +44,36 @@
 2. Відкрий посилання на телефоні й натисни «Додати на головний екран» — гра відкриватиметься як застосунок.
 
 Прогрес зберігається в самому браузері телефона.
+
+## Робота без інтернету
+- Шрифт номерів лежить у грі (`fonts/`, ліцензія SIL OFL 1.1).
+- На сайті (GitHub Pages) працює сервіс-воркер `sw.js`: після першого відкриття гра запускається навіть у режимі польоту.
+  Якщо змінюєш файли гри, збільш `VERSION` у `sw.js`.
+
+## Застосунок для iPhone та Android (Capacitor)
+Гра загорнута в [Capacitor](https://capacitorjs.com): проєкти лежать у папках `ios/` та `android/`.
+
+| Команда | Що робить |
+|---|---|
+| `npm install` | встановлює Capacitor |
+| `npm run build` | збирає файли гри в `www/` |
+| `npm run sync` | збирає гру й копіює її в `ios/` та `android/` |
+| `npm run ios` | відкриває проєкт у Xcode (потрібен Mac) |
+| `npm run android` | відкриває проєкт в Android Studio |
+| `npm run assets` | перемальовує іконки й заставку з папки `assets/` |
+
+**Автоматична збірка.** Після кожної зміни в `main` GitHub Actions збирає Android APK для тестів
+(вкладка **Actions** → «Збірка застосунків» → файл `nomernyi-klicker-android`) і перевіряє, що iOS-проєкт компілюється.
+
+### Як викласти в App Store
+1. Акаунт **Apple Developer Program** (99 $ на рік; з 18 років — або на когось із батьків).
+2. Mac з **Xcode**: `npm install`, потім `npm run ios`.
+3. У Xcode: **App → Signing & Capabilities** → вибрати свою команду (Team).
+   За потреби змінити ідентифікатор `com.danya7754.nomernyiklicker` у `capacitor.config.json` і в Xcode.
+4. **Product → Archive** → **Distribute App** → App Store Connect.
+5. На appstoreconnect.apple.com: опис, скриншоти, вікова категорія, політика конфіденційності → надіслати на перевірку.
+
+### Як викласти в Google Play
+1. Акаунт **Google Play Console** (25 $ один раз).
+2. В Android Studio: **Build → Generate Signed App Bundle** → файл `.aab`.
+3. Завантажити `.aab` у Play Console, заповнити опис і скриншоти → надіслати на перевірку.
