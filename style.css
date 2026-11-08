@@ -22,7 +22,7 @@
   --bg-deep: #2b5592;
   --gold: #ffd25a;
   --ink: #0e1b33;
-  --glass: rgba(14, 36, 78, .38);
+  --glass: rgba(18, 42, 88, .55);
   --glass-line: rgba(255, 255, 255, .18);
   --pw: min(calc(100vw - 32px), 440px);
 
@@ -65,7 +65,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 #bgfx i:nth-child(1) { left: -38vmax; top: -30vmax; }
 #bgfx i:nth-child(2) { right: -40vmax; top: 22vh; background: radial-gradient(circle, rgba(150, 205, 255, .26), transparent 62%); animation-duration: 24s; animation-delay: -7s; }
-#bgfx i:nth-child(3) { left: -20vmax; bottom: -50vmax; background: radial-gradient(circle, rgba(255, 190, 120, .16), transparent 62%); animation-duration: 29s; animation-delay: -13s; }
 @keyframes blob {
   0% { transform: translate(0, 0) scale(1); }
   50% { transform: translate(14vw, 8vh) scale(1.12); }
@@ -96,8 +95,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
   background: var(--glass);
   border: 1px solid var(--glass-line);
   box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
   animation: floatSoft 6s ease-in-out infinite;
 }
 .wallet-label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }
@@ -300,8 +297,6 @@ body.space .gain { opacity: 1; }
   background: var(--glass);
   border: 1px solid var(--glass-line);
   box-shadow: 0 8px 22px rgba(0, 0, 0, .18);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
   transition: opacity .3s;
 }
 .find.empty { display: grid; place-items: center; }
@@ -371,15 +366,9 @@ body.space .continue.show { visibility: visible; animation: blinkSoft 1.4s ease-
 @keyframes nebula { to { transform: translate(3%, -4%) scale(1.08) rotate(4deg); } }
 #space { visibility: hidden; transition: opacity .7s ease, visibility 0s linear .7s; }
 body.space #space { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity .7s ease; }
-.stars {
-  position: absolute; left: 50%; top: 50%;
-  width: 170vmax; height: 170vmax; margin: -85vmax 0 0 -85vmax;
-}
-/* зорі крутяться лише тоді, коли космос видно */
-body.space .stars { animation: starSpin 160s linear infinite; }
-.star { position: absolute; border-radius: 50%; background: #fff; animation: twinkle 3s ease-in-out infinite; }
-@keyframes starSpin { to { transform: rotate(360deg); } }
-@keyframes twinkle { 50% { opacity: .2; transform: scale(.6); } }
+.stars { position: absolute; inset: 0; width: 100%; height: 100%; }
+body.space .stars { animation: starDrift 30s ease-in-out infinite alternate; }
+@keyframes starDrift { to { transform: translate(-14px, -22px); } }
 
 body.space .plate-zone { position: relative; z-index: 21; }
 body.space .hint { visibility: hidden; }
@@ -529,6 +518,20 @@ body.space .region { animation: driftB 8s ease-in-out -2s infinite; }
 body.sheet-open #bgfx, body.sheet-open .stage, body.sheet-open .bottom { visibility: hidden; }
 body.sheet-open .wallet, body.sheet-open .avatar-btn { animation: none; }
 .version { margin: 0; font-size: 12px; opacity: .6; text-align: center; }
+
+/* легкий режим: вмикається сам, якщо Safari падав */
+body.lite #bgfx, body.lite .rays, body.lite #space::before { display: none; }
+body.lite .stars { animation: none; }
+body.lite .plate.v-diamond::before { animation: none; }
+.lite-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center;
+  padding: 10px 12px; border-radius: 12px; background: rgba(10, 28, 64, .35);
+  border-left: 4px solid var(--tc);
+}
+.lite-row .lp { font-family: "Roboto Condensed", "Arial Narrow", Arial, sans-serif; font-weight: 700; font-size: 20px; letter-spacing: .04em; }
+.lite-row small { grid-column: 1; font-size: 12px; opacity: .85; }
+.lite-row .sell { grid-row: 1 / span 2; grid-column: 2; align-self: center; }
+.chip[aria-pressed="true"] { background: var(--gold); color: var(--ink); border-color: var(--gold); }
 
 /* колекція */
 .chest-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }

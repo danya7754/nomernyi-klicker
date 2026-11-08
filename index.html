@@ -12,13 +12,13 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="style.css?v=1.4">
+  <link rel="stylesheet" href="style.css?v=1.5">
 </head>
 <body>
   <!-- живий фон -->
-  <div id="bgfx" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div id="bgfx" aria-hidden="true"><i></i><i></i></div>
   <!-- космос для рідкостей вище «Рідкісного» -->
-  <div id="space" aria-hidden="true"><div class="stars" id="stars"></div></div>
+  <div id="space" aria-hidden="true"><canvas class="stars" id="stars"></canvas></div>
 
   <div id="app">
     <!-- ВЕРХ: рахунок (зліва) і аватарка (справа) -->
@@ -154,6 +154,7 @@
       <div class="chest-tools">
         <button class="chip active" data-sort="price">Найдорожчі</button>
         <button class="chip" data-sort="new">Нові</button>
+        <button class="chip" id="liteToggle" aria-pressed="false">Простий список</button>
       </div>
       <div class="chest-list" id="chestList"></div>
     </div>
@@ -202,6 +203,6 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="game.js?v=1.4"></script>
+  <script src="game.js?v=1.5"></script>
 </body>
 </html>

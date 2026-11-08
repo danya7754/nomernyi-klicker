@@ -1,6 +1,6 @@
 // Офлайн-режим: гра зберігає свої файли на телефоні й відкривається без інтернету.
 // Після зміни будь-якого файлу гри збільш VERSION, щоб телефон завантажив нову версію.
-const VERSION = 'nomernyi-klicker-v3';
+const VERSION = 'nomernyi-klicker-v4';
 const FILES = [
   './',
   'index.html',

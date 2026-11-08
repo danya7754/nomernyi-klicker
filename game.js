@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = '1.4';   // показується в профілі; міняй разом з ?v= в index.html
+  const APP_VERSION = '1.5';   // показується в профілі; міняй разом з ?v= в index.html
 
   /* =========================================================
    *  ДАНІ: літери, регіони
@@ -226,7 +226,7 @@
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return;
       const s = JSON.parse(raw);
-      ['balance', 'earned', 'taps', 'found', 'sold', 'best', 'luckLvl', 'collection', 'sound', 'ach'].forEach((k) => {
+      ['balance', 'earned', 'taps', 'found', 'sold', 'best', 'luckLvl', 'collection', 'sound', 'ach', 'lite'].forEach((k) => {
         if (s[k] !== undefined) state[k] = s[k];
       });
       state.profile = Object.assign({ name: '', surname: '', age: '', avatar: '' }, s.profile || {});
@@ -391,20 +391,27 @@
     setTimeout(() => restartAnim(walletEl, 'pulse'), 800);
   }
 
-  (function makeStars() {
-    const box = $('stars');
-    const frag = document.createDocumentFragment();
-    for (let i = 0; i < 140; i++) {
-      const s = document.createElement('i');
-      s.className = 'star';
-      const size = Math.random() < 0.85 ? 1 + Math.random() * 1.5 : 2.5 + Math.random() * 1.5;
-      s.style.cssText = `left:${Math.random() * 100}%;top:${Math.random() * 100}%;width:${size}px;height:${size}px;` +
-        `animation-duration:${2 + Math.random() * 4}s;animation-delay:${-Math.random() * 5}s;` +
-        (Math.random() < 0.12 ? 'background:#ffe6a8;' : Math.random() < 0.12 ? 'background:#a8d4ff;' : '');
-      frag.appendChild(s);
+  // Зорі малюються один раз на canvas — це в рази легше для iPhone, ніж сотні анімованих елементів
+  function drawStars() {
+    const cv = $('stars');
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = window.innerWidth + 40, h = window.innerHeight + 40;
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+    cv.style.width = w + 'px';
+    cv.style.height = h + 'px';
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const colors = ['#ffffff', '#ffffff', '#ffffff', '#ffe6a8', '#a8d4ff'];
+    for (let i = 0; i < 150; i++) {
+      const r = Math.random() < 0.85 ? 0.5 + Math.random() * 0.8 : 1.3 + Math.random() * 0.9;
+      ctx.globalAlpha = 0.35 + Math.random() * 0.65;
+      ctx.fillStyle = colors[rnd(colors.length)];
+      ctx.beginPath();
+      ctx.arc(Math.random() * w, Math.random() * h, r, 0, Math.PI * 2);
+      ctx.fill();
     }
-    box.appendChild(frag);
-  })();
+  }
 
   /* =========================================================
    *  ЗВУК (WebAudio, без файлів)
@@ -614,7 +621,9 @@
   let spaceDoneAt = 0;
   let spaceItem = null;
 
+  let starsDrawn = false;
   function enterSpace(p) {
+    if (!starsDrawn) { drawStars(); starsDrawn = true; }
     spaceOn = true;
     spaceStart = performance.now();
     spaceDoneAt = 0;
@@ -1050,7 +1059,23 @@
       box.innerHTML = '<div class="chest-empty">Скриня поки порожня.<br>Клікай по номеру — рідкісні знаки (від «1 з 100») потраплять сюди автоматично.<br><br>Їх можна зберігати в колекції або продати за повну ціну.</div>';
       return;
     }
-    const page = list.slice(0, chestShown);
+    const lite = !!state.lite;
+    const pageSize = lite ? 20 : CHEST_PAGE;
+    const page = list.slice(0, Math.max(chestShown, pageSize));
+    const toggle = $('liteToggle');
+    toggle.setAttribute('aria-pressed', String(lite));
+    if (lite) {
+      box.innerHTML = page.map((it) => {
+        const ev = evaluate(it.r, it.n, it.s, it);
+        const isConfirm = confirmId === it.id;
+        const kind = it.w ? 'іменний' : it.v === 'gold' ? 'золотий' : it.v === 'diamond' ? 'діамантовий' : '';
+        return `<div class="lite-row tier-${ev.tier.id}"><span class="lp">${plateText(it)}</span>` +
+          `<button class="btn small sell${isConfirm ? ' confirm' : ''}" data-sell="${it.id}">${isConfirm ? 'Точно?' : 'Продати'}</button>` +
+          `<small>${ev.tier.name}${kind ? ' · ' + kind : ''} · ${oddsText(it.odds)} · <b>${money(it.price)}&nbsp;₴</b></small></div>`;
+      }).join('') + (list.length > page.length
+        ? `<button class="btn ghost more" data-more>Показати ще (${money(Math.min(pageSize, list.length - page.length))} з ${money(list.length - page.length)})</button>` : '');
+      return;
+    }
     box.innerHTML = page.map((it) => {
       const ev = evaluate(it.r, it.n, it.s, it);
       const why = ev.parts.map((x) => x.name).join(' + ');
@@ -1077,7 +1102,7 @@
   $('chestList').addEventListener('click', (e) => {
     if (e.target.closest('[data-more]')) {
       const top = $('chestList').scrollTop;
-      chestShown += CHEST_PAGE;
+      chestShown = Math.max(chestShown, state.lite ? 20 : CHEST_PAGE) + (state.lite ? 20 : CHEST_PAGE);
       renderChest();
       $('chestList').scrollTop = top;
       return;
@@ -1186,7 +1211,22 @@
   });
 
   $('avatarBtn').addEventListener('click', openProfile);
-  chestBtn.addEventListener('click', () => { confirmId = null; chestShown = CHEST_PAGE; renderChest(); openModal('chestModal'); $('chestList').scrollTop = 0; });
+  chestBtn.addEventListener('click', () => {
+    confirmId = null;
+    chestShown = state.lite ? 20 : CHEST_PAGE;
+    flag('nk-chest-opening', '1');               // якщо зараз впаде — наступного разу легкий режим
+    renderChest();
+    openModal('chestModal');
+    $('chestList').scrollTop = 0;
+    setTimeout(() => flag('nk-chest-opening', null), 3000);
+  });
+  $('liteToggle').addEventListener('click', () => {
+    state.lite = !state.lite;
+    document.body.classList.toggle('lite', state.lite);
+    chestShown = state.lite ? 20 : CHEST_PAGE;
+    save();
+    renderChest();
+  });
   $('shopBtn').addEventListener('click', () => openModal('shopModal'));
   $('achBtn').addEventListener('click', () => { renderAch(); openModal('achModal'); });
   giftBtn.addEventListener('click', () => openModal('dailyModal'));
@@ -1197,6 +1237,18 @@
 
   load();
   shown = lastTarget = state.balance;
+
+  // Якщо Safari падав (на старті або у скрині) — наступного разу гра сама вмикає легкий режим
+  const flag = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } return null; };
+  if (flag('nk-booting') || flag('nk-chest-opening')) {
+    if (!state.lite) setTimeout(() => toast('Гру перемкнено в легкий режим, щоб вона не падала'), 1200);
+    state.lite = true;
+    flag('nk-chest-opening', null);
+    save();
+  }
+  flag('nk-booting', '1');
+  setTimeout(() => flag('nk-booting', null), 5000);
+  document.body.classList.toggle('lite', !!state.lite);
 
   const first = randomPlate();
   fillPlate(plateEl, first);
